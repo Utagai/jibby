@@ -45,6 +45,7 @@ type Decoder struct {
 // This is necessary to account for lookahead for long decimals to minimize
 // copying.
 func NewDecoder(json *bufio.Reader) (*Decoder, error) {
+	panic("LOOOOOOOOOOOOOOL")
 	if json.Size() < 8192 {
 		json = bufio.NewReaderSize(json, 8192)
 	}
