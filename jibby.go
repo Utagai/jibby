@@ -530,7 +530,7 @@ func (d *Decoder) readInt64() (int64, error) {
 	return int64(n), nil
 }
 
-const parseErrorContextLength = 10
+const parseErrorContextLength = 50
 
 // parseError returns an error with a message and some context for where it occurs.
 func (d *Decoder) parseError(startingAt []byte, msg string) error {
