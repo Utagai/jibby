@@ -17,6 +17,47 @@ import (
 	"sync"
 )
 
+type rememberingReader struct {
+	*bufio.Reader
+	allBytes []byte
+}
+
+func newRememberingReader(r *bufio.Reader) *rememberingReader {
+	return &rememberingReader{
+		Reader:   r,
+		allBytes: []byte{},
+	}
+}
+
+func (l *rememberingReader) ReadByte() (byte, error) {
+	b, err := l.Reader.ReadByte()
+	l.allBytes = append(l.allBytes, b)
+	return b, err
+}
+
+func (l *rememberingReader) UnreadByte() error {
+	err := l.Reader.UnreadByte()
+	l.allBytes = l.allBytes[:len(l.allBytes)-1]
+	return err
+}
+
+func (l *rememberingReader) Discard(n int) (int, error) {
+	bs, err := l.Reader.Peek(n)
+	if err == nil {
+		l.allBytes = append(l.allBytes, bs...)
+	}
+	dn, err := l.Reader.Discard(n)
+	return dn, err
+}
+
+func (l *rememberingReader) toString(p []byte) string {
+	return string(p)
+}
+
+func (l *rememberingReader) remember() string {
+	return l.toString(l.allBytes)
+}
+
 // ErrUnsupportedBOM means that a UTF-16 or UTF-32 byte order mark was found.
 var ErrUnsupportedBOM = errors.New("unsupported byte order mark")
 
@@ -28,7 +69,7 @@ type Decoder struct {
 	arrayStarted   bool
 	curDepth       int
 	extJSONAllowed bool
-	json           *bufio.Reader
+	json           *rememberingReader
 	maxDepth       int
 	scratchPool    *sync.Pool
 }
@@ -45,17 +86,17 @@ type Decoder struct {
 // This is necessary to account for lookahead for long decimals to minimize
 // copying.
 func NewDecoder(json *bufio.Reader) (*Decoder, error) {
-	panic("LOOOOOOOOOOOOOOL")
 	if json.Size() < 8192 {
 		json = bufio.NewReaderSize(json, 8192)
 	}
-	err := handleBOM(json)
+	r := newRememberingReader(json)
+	err := handleBOM(r)
 	if err != nil {
 		return nil, err
 	}
 
 	d := &Decoder{
-		json:     json,
+		json:     r,
 		maxDepth: 200,
 		scratchPool: &sync.Pool{
 			New: func() interface{} { buf := make([]byte, 0, 256); return &buf },
@@ -504,9 +545,9 @@ func (d *Decoder) parseError(startingAt []byte, msg string) error {
 		}
 	}
 	if len(startingAt) > 0 {
-		return &ParseError{msg: fmt.Sprintf("parse error at `%s`: %s", startingAt, msg)}
+		return &ParseError{msg: fmt.Sprintf("parse error at `%s`: %s; remembered: %s", startingAt, msg, d.json.remember())}
 	}
-	return &ParseError{fmt.Sprintf("parse error: %s", msg)}
+	return &ParseError{fmt.Sprintf("parse error: %s; remembered: %s", msg, d.json.remember())}
 }
 
 // copyPeek returns a copy of a Peek into the start of the buffer.
@@ -575,7 +616,7 @@ func overwriteLength(out []byte, pos int, n int) {
 // handleBOM will detect/discard/error based on the BOM. Inability to peek a BOM is a
 // no-op, not an error so it can be handled by the normal parser.  Only UTF-8
 // BOM is supported; others will error.
-func handleBOM(r *bufio.Reader) error {
+func handleBOM(r *rememberingReader) error {
 	// Peek 2 byte BOMs
 	preamble, err := r.Peek(2)
 	if err != nil {

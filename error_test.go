@@ -8,7 +8,7 @@ import (
 
 func TestParseError(t *testing.T) {
 	var buf []byte
-	_, err := Unmarshal([]byte(`{,}`), buf)
+	_, err := Unmarshal([]byte(`{"hi": "hello", "worldo": powa}`), buf)
 	if err == nil {
 		t.Fatal("expected error but got nil")
 	}
@@ -21,4 +21,8 @@ func TestParseError(t *testing.T) {
 	if !errors.As(wrapped, &pe) {
 		t.Fatal("wrapped error wasn't a ParseError")
 	}
+	// expectedErrMsg := "blah"
+	// if pe.Error() != expectedErrMsg {
+	// 	t.Fatalf("wtf expected %s but got %s", expectedErrMsg, pe.Error())
+	// }
 }
