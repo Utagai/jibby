@@ -21,8 +21,8 @@ func TestParseError(t *testing.T) {
 	if !errors.As(wrapped, &pe) {
 		t.Fatal("wrapped error wasn't a ParseError")
 	}
-	// expectedErrMsg := "blah"
-	// if pe.Error() != expectedErrMsg {
-	// 	t.Fatalf("wtf expected %s but got %s", expectedErrMsg, pe.Error())
-	// }
+	expectedErrMsg := "blah"
+	if pe.Error() != expectedErrMsg {
+		t.Fatalf("wtf expected %s but got %s", expectedErrMsg, pe.Error())
+	}
 }

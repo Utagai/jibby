@@ -43,7 +43,7 @@ func (l *rememberingReader) UnreadByte() error {
 
 func (l *rememberingReader) Discard(n int) (int, error) {
 	bs, err := l.Reader.Peek(n)
-	if err == nil {
+	if err == nil || err == io.EOF || err == bufio.ErrBufferFull {
 		l.allBytes = append(l.allBytes, bs...)
 	}
 	dn, err := l.Reader.Discard(n)
@@ -55,7 +55,8 @@ func (l *rememberingReader) toString(p []byte) string {
 }
 
 func (l *rememberingReader) remember() string {
-	return l.toString(l.allBytes)
+	bs, _ := l.Peek(10000000)
+	return l.toString(append(l.allBytes, bs...))
 }
 
 // ErrUnsupportedBOM means that a UTF-16 or UTF-32 byte order mark was found.
@@ -545,9 +546,9 @@ func (d *Decoder) parseError(startingAt []byte, msg string) error {
 		}
 	}
 	if len(startingAt) > 0 {
-		return &ParseError{msg: fmt.Sprintf("parse error at `%s`: %s; remembered: %s", startingAt, msg, d.json.remember())}
+		return &ParseError{msg: fmt.Sprintf("parse error at `%s`: %s; remembered: |%s|", startingAt, msg, d.json.remember())}
 	}
-	return &ParseError{fmt.Sprintf("parse error: %s; remembered: %s", msg, d.json.remember())}
+	return &ParseError{fmt.Sprintf("parse error: %s; remembered: |%s|", msg, d.json.remember())}
 }
 
 // copyPeek returns a copy of a Peek into the start of the buffer.
